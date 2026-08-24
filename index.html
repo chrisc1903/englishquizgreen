@@ -6,6 +6,10 @@
     <title>Interactive Grammar Quiz</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+        data-clerk-publishable-key="__CLERK_PUBLISHABLE_KEY__"
+        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js">
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,11 +30,47 @@
             height: 280px;
             max-height: 280px;
         }
+        #auth-component .cl-rootBox {
+            width: 100%;
+        }
+        #auth-component .cl-card {
+            box-shadow: none;
+            width: 100%;
+        }
     </style>
 </head>
 <body class="bg-stone-50 text-stone-800 flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-2xl mx-auto">
+    <div id="auth-loading" class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg text-center">
+        <div class="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-stone-200 border-t-teal-600" aria-hidden="true"></div>
+        <p class="text-stone-600">Loading your account...</p>
+    </div>
+
+    <div id="auth-panel" class="hidden w-full max-w-md">
+        <div class="bg-white p-6 sm:p-8 rounded-xl shadow-lg">
+            <div class="mb-5 text-center">
+                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600 text-2xl font-bold text-white">Q</div>
+                <h1 class="text-2xl font-bold text-stone-800">English Quiz</h1>
+                <p class="mt-1 text-sm text-stone-500">Sign in to keep your quiz practice personal.</p>
+            </div>
+            <div id="auth-component"></div>
+            <button id="toggle-auth-mode" type="button" class="mt-4 w-full text-sm font-semibold text-teal-700 hover:text-teal-800 hover:underline focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 rounded">
+                Need an account? Sign up
+            </button>
+            <p id="auth-error" class="mt-4 hidden rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert"></p>
+        </div>
+    </div>
+
+    <div id="app-shell" class="hidden w-full max-w-2xl mx-auto">
+        <div class="mb-4 flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
+            <div>
+                <p class="text-sm font-bold text-stone-800">English Quiz</p>
+                <p id="user-greeting" class="text-xs text-stone-500"></p>
+            </div>
+            <button id="sign-out-button" type="button" class="rounded-lg px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                Sign out
+            </button>
+        </div>
         
         <div id="home-page-container" class="bg-white p-6 sm:p-8 rounded-xl shadow-lg transition-opacity duration-500">
             <h2 class="text-2xl sm:text-3xl font-bold text-stone-800 mb-6 text-center">Select a Quiz Set</h2>
@@ -2435,6 +2475,121 @@
         restartButton.addEventListener('click', showHomePage);
 
         document.addEventListener('DOMContentLoaded', showHomePage);
+    </script>
+    <script>
+        const authLoadingEl = document.getElementById('auth-loading');
+        const authPanelEl = document.getElementById('auth-panel');
+        const appShellEl = document.getElementById('app-shell');
+        const authComponentEl = document.getElementById('auth-component');
+        const authErrorEl = document.getElementById('auth-error');
+        const toggleAuthModeButton = document.getElementById('toggle-auth-mode');
+        const signOutButton = document.getElementById('sign-out-button');
+        const userGreetingEl = document.getElementById('user-greeting');
+        let authMode = 'signIn';
+
+        const clerkAppearance = {
+            variables: {
+                colorPrimary: '#0f766e',
+                colorText: '#292524',
+                colorTextSecondary: '#78716c',
+                colorBackground: '#ffffff',
+                colorInputBackground: '#fafaf9',
+                borderRadius: '0.75rem',
+                fontFamily: 'Inter, sans-serif'
+            },
+            elements: {
+                card: 'shadow-none border-0 p-0',
+                headerTitle: 'text-stone-800',
+                headerSubtitle: 'text-stone-500',
+                formButtonPrimary: 'bg-teal-700 hover:bg-teal-800',
+                formFieldInput: 'border-stone-300 focus:border-teal-500 focus:ring-teal-500',
+                footerActionLink: 'text-teal-700 hover:text-teal-800'
+            }
+        };
+
+        function showAuthError(message) {
+            authErrorEl.textContent = message;
+            authErrorEl.classList.remove('hidden');
+        }
+
+        function clearAuthComponent() {
+            authComponentEl.replaceChildren();
+            authErrorEl.classList.add('hidden');
+        }
+
+        function mountAuthComponent() {
+            clearAuthComponent();
+            if (authMode === 'signUp') {
+                window.Clerk.mountSignUp(authComponentEl, {
+                    appearance: clerkAppearance,
+                    signInUrl: window.location.href
+                });
+                toggleAuthModeButton.textContent = 'Already have an account? Sign in';
+            } else {
+                window.Clerk.mountSignIn(authComponentEl, {
+                    appearance: clerkAppearance,
+                    signUpUrl: window.location.href
+                });
+                toggleAuthModeButton.textContent = 'Need an account? Sign up';
+            }
+        }
+
+        function showSignedInApp(user) {
+            authLoadingEl.classList.add('hidden');
+            authPanelEl.classList.add('hidden');
+            appShellEl.classList.remove('hidden');
+            const name = user?.firstName || user?.primaryEmailAddress?.emailAddress || 'Quiz learner';
+            userGreetingEl.textContent = `Welcome, ${name}`;
+            showHomePage();
+        }
+
+        function showSignedOutApp() {
+            authLoadingEl.classList.add('hidden');
+            appShellEl.classList.add('hidden');
+            authPanelEl.classList.remove('hidden');
+            mountAuthComponent();
+        }
+
+        toggleAuthModeButton.addEventListener('click', () => {
+            authMode = authMode === 'signIn' ? 'signUp' : 'signIn';
+            mountAuthComponent();
+        });
+
+        signOutButton.addEventListener('click', async () => {
+            signOutButton.disabled = true;
+            try {
+                await window.Clerk.signOut();
+            } catch (error) {
+                signOutButton.disabled = false;
+                showAuthError('We could not sign you out. Please try again.');
+            }
+        });
+
+        (async function initializeAuth() {
+            try {
+                if (!window.Clerk) {
+                    throw new Error('Clerk did not load');
+                }
+                await window.Clerk.load();
+                window.Clerk.addListener(({ user }) => {
+                    if (user) {
+                        showSignedInApp(user);
+                    } else {
+                        showSignedOutApp();
+                    }
+                });
+                if (window.Clerk.user) {
+                    showSignedInApp(window.Clerk.user);
+                } else {
+                    showSignedOutApp();
+                }
+            } catch (error) {
+                console.error('Clerk initialization failed:', error);
+                authLoadingEl.classList.add('hidden');
+                showAuthError('Authentication could not load. Refresh the page and try again.');
+                authPanelEl.classList.remove('hidden');
+            }
+        })();
     </script>
 </body>
 </html>
