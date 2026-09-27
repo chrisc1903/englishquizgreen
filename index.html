@@ -2495,6 +2495,7 @@
         const signOutButton = document.getElementById('sign-out-button');
         const userGreetingEl = document.getElementById('user-greeting');
         let authMode = 'signIn';
+        let mountedAuthMode = null;
 
         const clerkAppearance = {
             variables: {
@@ -2522,7 +2523,13 @@
         }
 
         function clearAuthComponent() {
+            if (mountedAuthMode === 'signIn') {
+                window.Clerk?.unmountSignIn(authComponentEl);
+            } else if (mountedAuthMode === 'signUp') {
+                window.Clerk?.unmountSignUp(authComponentEl);
+            }
             authComponentEl.replaceChildren();
+            mountedAuthMode = null;
             authErrorEl.classList.add('hidden');
         }
 
@@ -2533,12 +2540,14 @@
                     appearance: clerkAppearance,
                     signInUrl: window.location.href
                 });
+                mountedAuthMode = 'signUp';
                 toggleAuthModeButton.textContent = 'Already have an account? Sign in';
             } else {
                 window.Clerk.mountSignIn(authComponentEl, {
                     appearance: clerkAppearance,
                     signUpUrl: window.location.href
                 });
+                mountedAuthMode = 'signIn';
                 toggleAuthModeButton.textContent = 'Need an account? Sign up';
             }
         }
